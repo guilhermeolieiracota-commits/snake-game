@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake 3D Mobile</title>
+    <title>Snake Slither Style AI</title>
     
-    <!-- Ícone real em PNG (Garante que vai aparecer no celular) -->
     <link rel="icon" type="image/png" href="icone.png">
     <link rel="apple-touch-icon" href="icone.png">
     
-    <meta name="theme-color" content="#020617">
+    <meta name="theme-color" content="#0b0f19">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Poppins:wght@600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #020617;
+            --bg: #0b0f19;
             --accent: #10b981;
         }
         * { box-sizing: border-box; }
@@ -33,34 +32,39 @@
             width: 90vw; max-width: 500px;
             display: flex; justify-content: space-between;
             padding: 15px 20px; font-family: 'Orbitron', sans-serif;
-            background: rgba(30, 41, 59, 0.6);
+            background: rgba(15, 23, 42, 0.6);
             border-radius: 12px; margin-bottom: 20px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
         canvas {
-            background: #000;
+            background: #0c101b;
             border: 4px solid #1e293b;
-            border-radius: 20px;
+            border-radius: 24px;
             width: 90vw; height: 90vw;
             max-width: 500px; max-height: 500px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
             display: block; margin: 0 auto;
         }
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(2, 6, 23, 0.95);
+            background: rgba(11, 15, 25, 0.95);
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             z-index: 100; text-align: center;
         }
         button {
             padding: 20px 50px; font-size: 20px;
-            background: var(--accent); border: none;
+            background: linear-gradient(135deg, #4285F4, #0d47a1); 
+            border: none;
             color: white; border-radius: 15px;
             font-weight: bold; cursor: pointer;
-            box-shadow: 0 5px 15px rgba(16,185,129,0.4);
+            box-shadow: 0 5px 25px rgba(66, 133, 244, 0.4);
             margin-top: 20px;
+            transition: transform 0.2s;
         }
+        button:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
@@ -70,17 +74,15 @@
     </div>
     <canvas id="gameCanvas" width="600" height="600"></canvas>
 
-    <!-- Tela Inicial -->
     <div id="startScreen" class="overlay">
-        <h1 style="font-family: 'Orbitron'; color: var(--accent); font-size: 40px; margin-bottom: 10px;">SNAKE 3D</h1>
-        <p style="color: #94a3b8; padding: 0 20px;">Deslize na tela para mover a cobra</p>
+        <h1 style="font-family: 'Orbitron'; color: #4285F4; font-size: 42px; margin-bottom: 10px; text-shadow: 0 0 20px rgba(66,133,244,0.3);">SLITHER SNAKE</h1>
+        <p style="color: #64748b; padding: 0 20px;">Coma para crescer. Os maiores devoram os menores!</p>
         <button onclick="startGame()">INICIAR</button>
     </div>
 
-    <!-- Tela de Game Over -->
     <div id="gameOver" class="overlay" style="display: none;">
-        <h1 style="color: #ef4444; font-size: 40px; margin: 0;">FIM DE JOGO</h1>
-        <div id="finalScore" style="font-size: 50px; font-weight: bold; font-family: 'Orbitron'; color: var(--accent); margin-bottom: 20px;">0</div>
+        <h1 style="color: #ef4444; font-size: 40px; margin: 0; text-shadow: 0 0 20px rgba(239,68,68,0.3);">VOCÊ VIROU COMIDA</h1>
+        <div id="finalScore" style="font-size: 50px; font-weight: bold; font-family: 'Orbitron'; color: #4285F4; margin-bottom: 20px;">0</div>
         <button onclick="resetGame()">REINICIAR</button>
     </div>
 
@@ -91,70 +93,76 @@
     const tileCount = canvas.width / gridSize;
 
     const foodTypes = [
-        { name: "Maçã", color: "#ef4444" },
-        { name: "Uva", color: "#a855f7" },
-        { name: "Laranja", color: "#fb923c" },
-        { name: "Mirtilo", color: "#3b82f6" },
-        { name: "Pera", color: "#bef264" }
+        { name: "Maçã", color: "#ff4757" },
+        { name: "Uva", color: "#ffa502" },
+        { name: "Laranja", color: "#ff7f50" },
+        { name: "Mirtilo", color: "#2e86de" },
+        { name: "Pera", color: "#2ed573" }
     ];
 
-    let snake = [{x: 10, y: 10}, {x: 9, y: 10}, {x: 8, y: 10}];
+    let snake = [];
     let food = {x: 5, y: 5};
     let currentFood = foodTypes[0];
     let dx = 0, dy = 0, score = 0, isDead = false, gameActive = false;
     let mudandoDirecao = false; 
 
-    // --- SISTEMA DE SOM SINTETIZADO ---
-    let audioCtx;
+    // --- SISTEMA DE INTELIGÊNCIA ARTIFICIAL (BOTS) ---
+    let bots = [];
+    const numBots = 3;
+    const botColors = ["#ff4757", "#ffa502", "#a855f7"]; // Vermelho, Laranja, Roxo
 
+    function initBots() {
+        bots = [];
+        for(let i = 0; i < numBots; i++) {
+            bots.push({
+                body: [
+                    {x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount)}
+                ],
+                dx: 1, dy: 0,
+                color: botColors[i % botColors.length],
+                isDead: false
+            });
+            // Da um tamanho inicial pequeno aos bots
+            bots[i].body.push({x: bots[i].body[0].x, y: bots[i].body[0].y});
+        }
+    }
+
+    const logoImg = new Image();
+    logoImg.src = 'icone.png';
+
+    let audioCtx;
     function playEffect(type) {
         if(!audioCtx) return;
-
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
         osc.connect(g); g.connect(audioCtx.destination);
-
         const currentTime = audioCtx.currentTime;
 
         if(type === 'eat') {
             osc.type = 'sine'; 
-            osc.frequency.setValueAtTime(400, currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1100, currentTime + 0.1);
-            
-            g.gain.setValueAtTime(0.1, currentTime);
-            g.gain.linearRampToValueAtTime(0, currentTime + 0.1);
-            
-            osc.start(currentTime); osc.stop(currentTime + 0.1);
+            osc.frequency.setValueAtTime(450, currentTime);
+            osc.frequency.exponentialRampToValueAtTime(950, currentTime + 0.08);
+            g.gain.setValueAtTime(0.08, currentTime);
+            g.gain.linearRampToValueAtTime(0, currentTime + 0.08);
+            osc.start(currentTime); osc.stop(currentTime + 0.08);
         } else if(type === 'dead') {
             osc.type = 'sawtooth'; 
-            osc.frequency.setValueAtTime(300, currentTime);
-            osc.frequency.exponentialRampToValueAtTime(30, currentTime + 0.4);
-            
-            g.gain.setValueAtTime(0.2, currentTime);
-            g.gain.linearRampToValueAtTime(0, currentTime + 0.4);
-            
-            osc.start(currentTime); osc.stop(currentTime + 0.4);
+            osc.frequency.setValueAtTime(260, currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, currentTime + 0.35);
+            g.gain.setValueAtTime(0.15, currentTime);
+            g.gain.linearRampToValueAtTime(0, currentTime + 0.35);
+            osc.start(currentTime); osc.stop(currentTime + 0.35);
         }
     }
 
     function startGame() {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if(audioCtx.state === 'suspended') {
-            audioCtx.resume().then(() => {
-                console.log('Áudio ativado');
-            });
-        }
-
+        if(audioCtx.state === 'suspended') audioCtx.resume();
         document.getElementById('startScreen').style.display = 'none';
-        gameActive = true;
-        dx = 1; dy = 0;
-        spawnFood();
-        loop();
+        resetGame();
     }
 
-    // --- CONTROLES TOUCH (SWIPE) ---
     let tX = 0, tY = 0;
-    
     document.addEventListener('touchstart', e => {
         tX = e.changedTouches[0].screenX;
         tY = e.changedTouches[0].screenY;
@@ -162,22 +170,19 @@
 
     document.addEventListener('touchend', e => {
         if (!gameActive || isDead || mudandoDirecao) return;
-        
         let dX = tX - e.changedTouches[0].screenX;
         let dY = tY - e.changedTouches[0].screenY;
-        
-        if (Math.abs(dX) > 30 || Math.abs(dY) > 30) {
+        if (Math.abs(dX) > 25 || Math.abs(dY) > 25) {
             if (Math.abs(dX) > Math.abs(dY)) {
-                if (dX > 0 && dx !== 1) { dx = -1; dy = 0; mudandoDirecao = true; } // Esquerda
-                else if (dX < 0 && dx !== -1) { dx = 1; dy = 0; mudandoDirecao = true; } // Direita
+                if (dX > 0 && dx !== 1) { dx = -1; dy = 0; mudandoDirecao = true; } 
+                else if (dX < 0 && dx !== -1) { dx = 1; dy = 0; mudandoDirecao = true; } 
             } else {
-                if (dY > 0 && dy !== 1) { dx = 0; dy = -1; mudandoDirecao = true; } // Cima
-                else if (dY < 0 && dy !== -1) { dx = 0; dy = 1; mudandoDirecao = true; } // Baixo
+                if (dY > 0 && dy !== 1) { dx = 0; dy = -1; mudandoDirecao = true; } 
+                else if (dY < 0 && dy !== -1) { dx = 0; dy = 1; mudandoDirecao = true; } 
             }
         }
     });
 
-    // Teclado PC com Trava
     document.addEventListener('keydown', e => {
         if (mudandoDirecao) return;
         if(e.key === "ArrowLeft" && dx !== 1) { dx = -1; dy = 0; mudandoDirecao = true; }
@@ -186,108 +191,213 @@
         if(e.key === "ArrowDown" && dy !== -1) { dx = 0; dy = 1; mudandoDirecao = true; }
     });
 
-    function draw() {
-        ctx.fillStyle = "#050b14"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    function drawHexGrid() {
+        ctx.fillStyle = "#0c101b"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "#161b26"; ctx.lineWidth = 2;
+        const hexRadius = 22; const hexHeight = hexRadius * Math.sqrt(3);
         
-        // --- DESENHO DETALHADO DAS FRUTAS ---
-        const cx = food.x * 30 + 15;
-        const cy = food.y * 30 + 15;
-        
-        ctx.save();
-        ctx.shadowBlur = 15; 
-        ctx.shadowColor = currentFood.color;
-        ctx.translate(cx, cy);
-
-        if (currentFood.name === "Maçã") {
-            ctx.fillStyle = currentFood.color;
-            ctx.beginPath(); ctx.arc(0, 2, 10, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = "#4ade80"; ctx.fillRect(-2, -10, 4, 6); // Cabinho verde
-        } 
-        else if (currentFood.name === "Uva") {
-            ctx.fillStyle = currentFood.color;
-            ctx.beginPath(); ctx.arc(-5, -4, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(5, -4, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(0, 4, 6, 0, Math.PI * 2); ctx.fill();
-        } 
-        else if (currentFood.name === "Laranja") {
-            ctx.fillStyle = currentFood.color;
-            ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = "rgba(0,0,0,0.15)";
-            ctx.beginPath(); ctx.arc(4, -4, 2, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(-3, 3, 1.5, 0, Math.PI * 2); ctx.fill();
-        } 
-        else if (currentFood.name === "Mirtilo") {
-            ctx.fillStyle = currentFood.color;
-            ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = "#93c5fd"; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(-4, -7); ctx.lineTo(4, -7); ctx.stroke(); // Coroa superior
-        } 
-        else if (currentFood.name === "Pera") {
-            ctx.fillStyle = currentFood.color;
-            ctx.beginPath(); ctx.arc(0, 3, 9, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(0, -4, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = "#4ade80"; ctx.fillRect(-1, -11, 2, 5); // Cabinho
+        for (let row = -1; row < canvas.height / (hexHeight * 0.5) + 1; row++) {
+            for (let col = -1; col < canvas.width / (hexRadius * 1.5) + 1; col++) {
+                let cx = col * hexRadius * 1.5;
+                let cy = row * hexHeight;
+                if (col % 2 === 1) cy += hexHeight * 0.5;
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    let angle = (Math.PI / 3) * i;
+                    let x = cx + hexRadius * Math.cos(angle);
+                    let y = cy + hexRadius * Math.sin(angle);
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.closePath(); ctx.stroke();
+            }
         }
+    }
+
+    function draw() {
+        drawHexGrid();
+        
+        // 1. Desenhar Comida
+        const cx = food.x * 30 + 15; const cy = food.y * 30 + 15;
+        ctx.save();
+        let foodGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 18);
+        foodGlow.addColorStop(0, '#ffffff');
+        foodGlow.addColorStop(0.2, currentFood.color);
+        foodGlow.addColorStop(0.6, currentFood.color + '44');
+        foodGlow.addColorStop(1, 'transparent');
+        ctx.fillStyle = foodGlow;
+        ctx.beginPath(); ctx.arc(cx, cy, 18, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
 
-        // --- DESENHO DA COBRA ---
-        ctx.strokeStyle = "#4285F4"; ctx.lineWidth = 26; ctx.lineJoin = "round"; ctx.lineCap = "round";
+        // 2. Desenhar Todos os Bots
+        bots.forEach(bot => {
+            if(bot.isDead) return;
+            ctx.save();
+            ctx.shadowBlur = 15; ctx.shadowColor = bot.color;
+            ctx.strokeStyle = bot.color; ctx.lineWidth = 20;
+            ctx.lineJoin = "round"; ctx.lineCap = "round";
+            
+            ctx.beginPath();
+            bot.body.forEach((p, i) => {
+                if(i === 0) ctx.moveTo(p.x*30+15, p.y*30+15);
+                else ctx.lineTo(p.x*30+15, p.y*30+15);
+            });
+            ctx.stroke();
+
+            // Olhos simples dos Bots
+            ctx.fillStyle = "white";
+            let hX = bot.body[0].x*30+15, hY = bot.body[0].y*30+15;
+            ctx.beginPath(); ctx.arc(hX-5, hY-5, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(hX+5, hY-5, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "black";
+            ctx.beginPath(); ctx.arc(hX-5+(bot.dx*2), hY-5+(bot.dy*2), 2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(hX+5+(bot.dx*2), hY-5+(bot.dy*2), 2, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        });
+
+        // 3. Desenhar a Cobra do Jogador
+        ctx.save();
+        ctx.shadowBlur = 15; ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+        ctx.strokeStyle = "#40c4ff"; ctx.lineWidth = 24;
+        ctx.lineJoin = "round"; ctx.lineCap = "round";
+        
         ctx.beginPath();
         snake.forEach((p, i) => {
             if(i === 0) ctx.moveTo(p.x*30+15, p.y*30+15);
             else ctx.lineTo(p.x*30+15, p.y*30+15);
         });
         ctx.stroke();
+        ctx.restore();
 
-        // Olhos Dinâmicos
-        const h = snake[0]; 
+        // Cabeça do Jogador com Logo
+        const h = snake[0];
+        const hX = h.x * 30 + 15; const hY = h.y * 30 + 15;
+        ctx.save();
+        ctx.fillStyle = "#0091ea";
+        ctx.beginPath(); ctx.arc(hX, hY, 15, 0, Math.PI * 2); ctx.fill();
+        try {
+            ctx.beginPath(); ctx.arc(hX, hY, 12, 0, Math.PI * 2); ctx.clip();
+            ctx.drawImage(logoImg, hX - 12, hY - 12, 24, 24);
+        } catch(e) {}
+        ctx.restore();
+
         ctx.fillStyle = "white";
-        
-        let eyeOffsetX1 = 10, eyeOffsetY1 = 10;
-        let eyeOffsetX2 = 20, eyeOffsetY2 = 10;
-        
-        if (dx === -1) { eyeOffsetX1 = 5; eyeOffsetX2 = 5; eyeOffsetY1 = 10; eyeOffsetY2 = 20; } 
-        else if (dx === 1) { eyeOffsetX1 = 25; eyeOffsetX2 = 25; eyeOffsetY1 = 10; eyeOffsetY2 = 20; } 
-        else if (dy === 1) { eyeOffsetX1 = 10; eyeOffsetX2 = 20; eyeOffsetY1 = 25; eyeOffsetY2 = 25; } 
+        let eyeX1 = 8, eyeY1 = 8, eyeX2 = 22, eyeY2 = 8;
+        if (dx === -1) { eyeX1 = 4; eyeX2 = 4; eyeY1 = 8; eyeY2 = 22; } 
+        else if (dx === 1) { eyeX1 = 26; eyeX2 = 26; eyeY1 = 8; eyeY2 = 22; } 
+        else if (dy === 1) { eyeX1 = 8; eyeX2 = 22; eyeY1 = 26; eyeY2 = 26; } 
 
-        ctx.beginPath(); ctx.arc(h.x*30+eyeOffsetX1, h.y*30+eyeOffsetY1, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(h.x*30+eyeOffsetX2, h.y*30+eyeOffsetY2, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(h.x*30+eyeX1, h.y*30+eyeY1, 4.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(h.x*30+eyeX2, h.y*30+eyeY2, 4.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "black";
+        ctx.beginPath(); ctx.arc(h.x*30+eyeX1 + (dx*1.5), h.y*30+eyeY1 + (dy*1.5), 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(h.x*30+eyeX2 + (dx*1.5), h.y*30+eyeY2 + (dy*1.5), 2, 0, Math.PI * 2); ctx.fill();
     }
 
     function spawnFood() {
         food = {x: Math.floor(Math.random()*tileCount), y: Math.floor(Math.random()*tileCount)};
         currentFood = foodTypes[Math.floor(Math.random()*foodTypes.length)];
-        const label = document.getElementById('foodLabel');
-        label.innerText = currentFood.name;
-        label.style.color = currentFood.color;
+        document.getElementById('foodLabel').innerText = currentFood.name;
+        document.getElementById('foodLabel').style.color = currentFood.color;
+    }
+
+    function triggerGameOver() {
+        isDead = true; 
+        playEffect('dead'); 
+        document.getElementById('gameOver').style.display = 'flex';
+        document.getElementById('finalScore').innerText = score;
     }
 
     function update() {
         if(!gameActive || isDead) return;
         mudandoDirecao = false; 
-        
+
+        // 1. Movimento do Jogador
         let h = {x: snake[0].x + dx, y: snake[0].y + dy};
-
-        if(h.x < 0 || h.x >= tileCount || h.y < 0 || h.y >= tileCount || snake.some(p => p.x === h.x && p.y === h.y)) {
-            isDead = true; 
-            playEffect('dead'); 
-            
-            document.getElementById('gameOver').style.display = 'flex';
-            document.getElementById('finalScore').innerText = score;
-            return;
-        }
-
         snake.unshift(h);
-        
         if(h.x === food.x && h.y === food.y) {
             score += 10; document.getElementById('score').innerText = score;
-            playEffect('eat'); 
-            spawnFood();
+            playEffect('eat'); spawnFood();
         } else { snake.pop(); }
+
+        // 2. Movimento da Inteligência Artificial (Bots)
+        bots.forEach(bot => {
+            if(bot.isDead) return;
+            
+            // Lógica simples: Tentar ir em direção à comida
+            let moves = [
+                {x: 1, y: 0}, {x: -1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}
+            ].filter(m => !(m.x === -bot.dx && m.y === -bot.dy)); // Evita voltar para trás
+
+            // Escolhe o caminho mais curto até a comida
+            moves.sort((a,b) => {
+                let distA = Math.abs((bot.body[0].x + a.x) - food.x) + Math.abs((bot.body[0].y + a.y) - food.y);
+                let distB = Math.abs((bot.body[0].x + b.x) - food.x) + Math.abs((bot.body[0].y + b.y) - food.y);
+                return distA - distB;
+            });
+
+            bot.dx = moves[0].x; bot.dy = moves[0].y;
+            let botHead = {x: bot.body[0].x + bot.dx, y: bot.body[0].y + bot.dy};
+            bot.body.unshift(botHead);
+            
+            if(botHead.x === food.x && botHead.y === food.y) {
+                spawnFood(); // Bot comeu a comida
+            } else {
+                bot.body.pop();
+            }
+        });
+
+        // 3. Sistema de Colisão e "Devorar" (Player vs Bots)
+        // Junta todos os jogadores vivos num array para comparar
+        let allSnakes = [{isPlayer: true, body: snake}].concat(bots.filter(b => !b.isDead));
+
+        for (let s1 of allSnakes) {
+            let head = s1.body[0];
+
+            // Bateu na parede? Morre!
+            if(head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                if(s1.isPlayer) return triggerGameOver(); 
+                else { s1.isDead = true; continue; }
+            }
+
+            // Colisão entre cobras
+            for (let s2 of allSnakes) {
+                for (let i = 0; i < s2.body.length; i++) {
+                    if (s1 === s2 && i === 0) continue; // Ignora a própria cabeça
+                    
+                    if (head.x === s2.body[i].x && head.y === s2.body[i].y) {
+                        // Alguém bateu! Quem é o maior?
+                        if (s1.body.length > s2.body.length) {
+                            // S1 (O atacante) é MAIOR. Devora o S2!
+                            if (s2.isPlayer) return triggerGameOver(); // O jogador foi devorado por um bot maior
+                            else {
+                                s2.isDead = true; // Bot morre
+                                if (s1.isPlayer) {
+                                    // Jogador ganha bônus por devorar bot
+                                    score += 50; 
+                                    document.getElementById('score').innerText = score;
+                                    playEffect('eat');
+                                    s1.body.push({...s1.body[s1.body.length-1]}); // Cresce mais por ter comido carne
+                                }
+                            }
+                        } else {
+                            // S1 (O atacante) é MENOR ou IGUAL. S1 Morre!
+                            if (s1.isPlayer) return triggerGameOver(); 
+                            else s1.isDead = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Renascer bots mortos (Respawn)
+        bots.forEach(bot => {
+            if(bot.isDead && Math.random() < 0.05) { // 5% de chance de renascer por frame
+                bot.body = [{x: Math.floor(Math.random()*tileCount), y: Math.floor(Math.random()*tileCount)}];
+                bot.body.push({...bot.body[0]});
+                bot.dx = 1; bot.dy = 0;
+                bot.isDead = false;
+            }
+        });
     }
 
     function loop() {
@@ -300,7 +410,10 @@
         dx = 1; dy = 0; score = 0; isDead = false; mudandoDirecao = false;
         document.getElementById('score').innerText = "0";
         document.getElementById('gameOver').style.display = 'none';
-        spawnFood(); loop();
+        initBots();
+        spawnFood(); 
+        gameActive = true;
+        loop();
     }
 </script>
 </body>
