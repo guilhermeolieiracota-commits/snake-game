@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Snake 3D Mobile</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#020617">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Poppins:wght@600&display=swap" rel="stylesheet">
     <style>
@@ -13,43 +13,69 @@
             --bg: #020617;
             --accent: #10b981;
         }
+        
+        * {
+            box-sizing: border-box; /* Garante que os paddings não estraguem o layout mobile */
+        }
+
         body {
-            margin: 0; padding: 0;
+            margin: 0; 
+            padding: 0;
             background: var(--bg);
             color: white;
             font-family: 'Poppins', sans-serif;
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center; height: 100vh; overflow: hidden;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+            justify-content: center; 
+            min-height: 100dvh; /* 100dvh resolve o bug da barra de navegação no celular */
+            width: 100vw;
+            overflow: hidden;
             touch-action: none; /* Impede o scroll e zoom */
         }
+
         .stats {
-            width: 90%; max-width: 500px;
-            display: flex; justify-content: space-between;
-            padding: 10px; font-family: 'Orbitron';
+            width: 90vw; 
+            max-width: 500px;
+            display: flex; 
+            justify-content: space-between;
+            padding: 15px 20px; 
+            font-family: 'Orbitron', sans-serif;
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 12px;
+            margin-bottom: 20px;
         }
+
         canvas {
             background: #000;
             border: 4px solid #1e293b;
             border-radius: 20px;
-            width: 90vw; height: 90vw; /* Quadrado responsivo */
-            max-width: 500px; max-height: 500px;
+            width: 90vw; 
+            height: 90vw; /* Quadrado responsivo perfeito */
+            max-width: 500px; 
+            max-height: 500px;
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            display: block;
+            margin: 0 auto;
         }
+
         /* Telas de Overlay */
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(2, 6, 23, 0.9);
+            background: rgba(2, 6, 23, 0.95);
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             z-index: 100; text-align: center;
         }
+
         button {
             padding: 20px 50px; font-size: 20px;
             background: var(--accent); border: none;
             color: white; border-radius: 15px;
             font-weight: bold; cursor: pointer;
             box-shadow: 0 5px 15px rgba(16,185,129,0.4);
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -57,22 +83,22 @@
 
     <div class="stats">
         <div>SCORE: <span id="score">0</span></div>
-        <div id="foodLabel" style="color: var(--accent)"></div>
+        <div id="foodLabel" style="color: var(--accent)">Maçã</div>
     </div>
 
     <canvas id="gameCanvas" width="600" height="600"></canvas>
 
-    <!-- Tela Inicial (Necessária para Áudio e Mobile) -->
+    <!-- Tela Inicial -->
     <div id="startScreen" class="overlay">
-        <h1 style="font-family: 'Orbitron'; color: var(--accent);">SNAKE 3D</h1>
-        <p>Deslize para mover a cobra</p>
+        <h1 style="font-family: 'Orbitron'; color: var(--accent); font-size: 40px; margin-bottom: 10px;">SNAKE 3D</h1>
+        <p style="color: #94a3b8;">Deslize na tela para mover a cobra</p>
         <button onclick="startGame()">INICIAR</button>
     </div>
 
     <!-- Tela de Game Over -->
     <div id="gameOver" class="overlay" style="display: none;">
-        <h1 style="color: #ef4444;">FIM DE JOGO</h1>
-        <div id="finalScore" style="font-size: 40px; margin-bottom: 20px;">0</div>
+        <h1 style="color: #ef4444; font-size: 40px; margin-bottom: 10px;">FIM DE JOGO</h1>
+        <div id="finalScore" style="font-size: 50px; font-weight: bold; font-family: 'Orbitron'; color: var(--accent); margin-bottom: 20px;">0</div>
         <button onclick="resetGame()">REINICIAR</button>
     </div>
 
@@ -114,22 +140,42 @@
         loop();
     }
 
-    // Lógica de Toque (Swipe)
-    let tX = 0, tY = 0;
-    document.addEventListener('touchstart', e => { tX = e.touches[0].clientX; tY = e.touches[0].clientY; }, false);
+    // --- NOVA LÓGICA DE TOQUE 100% OTIMIZADA PARA MOBILE ---
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    document.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+    }, {passive: false});
+
+    // Impede a tela do celular de ser arrastada (efeito elástico) durante o jogo
     document.addEventListener('touchmove', e => {
-        if(!tX || !tY) return;
-        let diffX = tX - e.touches[0].clientX;
-        let diffY = tY - e.touches[0].clientY;
-        if (Math.abs(diffX) > Math.abs(diffY)) {
-            if (diffX > 30 && dx !== 1) { dx = -1; dy = 0; } // Esquerda
-            else if (diffX < -30 && dx !== -1) { dx = 1; dy = 0; } // Direita
-        } else {
-            if (diffY > 30 && dy !== 1) { dx = 0; dy = -1; } // Cima
-            else if (diffY < -30 && dy !== -1) { dx = 0; dy = 1; } // Baixo
+        e.preventDefault(); 
+    }, {passive: false});
+
+    document.addEventListener('touchend', e => {
+        if (!gameActive || isDead) return;
+
+        let touchEndX = e.changedTouches[0].screenX;
+        let touchEndY = e.changedTouches[0].screenY;
+
+        let diffX = touchStartX - touchEndX;
+        let diffY = touchStartY - touchEndY;
+
+        // Limite mínimo de arraste de 30px (evita toques acidentais ou muito curtos)
+        if (Math.abs(diffX) > 30 || Math.abs(diffY) > 30) {
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                // Arraste Horizontal
+                if (diffX > 0 && dx !== 1) { dx = -1; dy = 0; } // Deslizou para a Esquerda
+                else if (diffX < 0 && dx !== -1) { dx = 1; dy = 0; } // Deslizou para a Direita
+            } else {
+                // Arraste Vertical
+                if (diffY > 0 && dy !== 1) { dx = 0; dy = -1; } // Deslizou para Cima
+                else if (diffY < 0 && dy !== -1) { dx = 0; dy = 1; } // Deslizou para Baixo
+            }
         }
-        tX = null; tY = null;
-    }, false);
+    });
 
     // Teclado para PC
     document.addEventListener('keydown', e => {
@@ -165,8 +211,17 @@
         // Olhos da cabeça
         const head = snake[0];
         ctx.fillStyle = "white";
-        ctx.beginPath(); ctx.arc(head.x*gridSize+10, head.y*gridSize+10, 5, 0, 7); ctx.fill();
-        ctx.beginPath(); ctx.arc(head.x*gridSize+20, head.y*gridSize+10, 5, 0, 7); ctx.fill();
+        
+        // Direcionando os olhos conforme o movimento
+        let eyeOffsetX = 10, eyeOffsetY = 10;
+        let eye2OffsetX = 20, eye2OffsetY = 10;
+        
+        if (dx === -1) { eyeOffsetX = 5; eye2OffsetX = 5; eyeOffsetY = 10; eye2OffsetY = 20; }
+        else if (dx === 1) { eyeOffsetX = 25; eye2OffsetX = 25; eyeOffsetY = 10; eye2OffsetY = 20; }
+        else if (dy === 1) { eyeOffsetX = 10; eye2OffsetX = 20; eyeOffsetY = 25; eye2OffsetY = 25; }
+
+        ctx.beginPath(); ctx.arc(head.x*gridSize+eyeOffsetX, head.y*gridSize+eyeOffsetY, 4, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(head.x*gridSize+eye2OffsetX, head.y*gridSize+eye2OffsetY, 4, 0, 7); ctx.fill();
     }
 
     function update() {
