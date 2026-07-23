@@ -189,13 +189,52 @@
     function draw() {
         ctx.fillStyle = "#050b14"; ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Comida
-        ctx.fillStyle = currentFood.color;
-        ctx.shadowBlur = 15; ctx.shadowColor = currentFood.color;
-        ctx.beginPath(); ctx.arc(food.x*30+15, food.y*30+15, 12, 0, 7); ctx.fill();
-        ctx.shadowBlur = 0;
+        // --- DESENHO DETALHADO DAS FRUTAS ---
+        const cx = food.x * 30 + 15;
+        const cy = food.y * 30 + 15;
+        
+        ctx.save();
+        ctx.shadowBlur = 15; 
+        ctx.shadowColor = currentFood.color;
+        ctx.translate(cx, cy);
 
-        // Cobra
+        if (currentFood.name === "Maçã") {
+            ctx.fillStyle = currentFood.color;
+            ctx.beginPath(); ctx.arc(0, 2, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "#4ade80"; ctx.fillRect(-2, -10, 4, 6); // Cabinho verde
+        } 
+        else if (currentFood.name === "Uva") {
+            ctx.fillStyle = currentFood.color;
+            ctx.beginPath(); ctx.arc(-5, -4, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(5, -4, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(0, 4, 6, 0, Math.PI * 2); ctx.fill();
+        } 
+        else if (currentFood.name === "Laranja") {
+            ctx.fillStyle = currentFood.color;
+            ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "rgba(0,0,0,0.15)";
+            ctx.beginPath(); ctx.arc(4, -4, 2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-3, 3, 1.5, 0, Math.PI * 2); ctx.fill();
+        } 
+        else if (currentFood.name === "Mirtilo") {
+            ctx.fillStyle = currentFood.color;
+            ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = "#93c5fd"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(-4, -7); ctx.lineTo(4, -7); ctx.stroke(); // Coroa superior
+        } 
+        else if (currentFood.name === "Pera") {
+            ctx.fillStyle = currentFood.color;
+            ctx.beginPath(); ctx.arc(0, 3, 9, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(0, -4, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "#4ade80"; ctx.fillRect(-1, -11, 2, 5); // Cabinho
+        }
+        ctx.restore();
+
+        // --- DESENHO DA COBRA ---
         ctx.strokeStyle = "#4285F4"; ctx.lineWidth = 26; ctx.lineJoin = "round"; ctx.lineCap = "round";
         ctx.beginPath();
         snake.forEach((p, i) => {
@@ -215,8 +254,8 @@
         else if (dx === 1) { eyeOffsetX1 = 25; eyeOffsetX2 = 25; eyeOffsetY1 = 10; eyeOffsetY2 = 20; } 
         else if (dy === 1) { eyeOffsetX1 = 10; eyeOffsetX2 = 20; eyeOffsetY1 = 25; eyeOffsetY2 = 25; } 
 
-        ctx.beginPath(); ctx.arc(h.x*30+eyeOffsetX1, h.y*30+eyeOffsetY1, 4, 0, 7); ctx.fill();
-        ctx.beginPath(); ctx.arc(h.x*30+eyeOffsetX2, h.y*30+eyeOffsetY2, 4, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(h.x*30+eyeOffsetX1, h.y*30+eyeOffsetY1, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(h.x*30+eyeOffsetX2, h.y*30+eyeOffsetY2, 4, 0, Math.PI * 2); ctx.fill();
     }
 
     function spawnFood() {
