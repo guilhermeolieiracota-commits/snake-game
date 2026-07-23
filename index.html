@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Slither Style AI</title>
+    <title>Snake Slither Style AI - Mundo Aberto</title>
     
     <link rel="icon" type="image/png" href="icone.png">
     <link rel="apple-touch-icon" href="icone.png">
@@ -32,10 +32,11 @@
             width: 90vw; max-width: 500px;
             display: flex; justify-content: space-between;
             padding: 15px 20px; font-family: 'Orbitron', sans-serif;
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(15, 23, 42, 0.8);
             border-radius: 12px; margin-bottom: 20px;
             backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
         }
         canvas {
             background: #0c101b;
@@ -69,19 +70,20 @@
 </head>
 <body>
     <div class="stats">
-        <div>SCORE: <span id="score">0</span></div>
-        <div id="foodDisplay" style="font-weight: 800;">ALVO: <span id="foodLabel" style="color: var(--accent)">Maçã</span></div>
+        <div>SCORE: <span id="score" style="color: #40c4ff;">0</span></div>
+        <div id="sizeDisplay" style="font-weight: 800;">TAMANHO: <span id="snakeSize" style="color: var(--accent)">3</span></div>
     </div>
+    
     <canvas id="gameCanvas" width="600" height="600"></canvas>
 
     <div id="startScreen" class="overlay">
-        <h1 style="font-family: 'Orbitron'; color: #4285F4; font-size: 42px; margin-bottom: 10px; text-shadow: 0 0 20px rgba(66,133,244,0.3);">SLITHER SNAKE</h1>
-        <p style="color: #64748b; padding: 0 20px;">Coma para crescer. Os maiores devoram os menores!</p>
+        <h1 style="font-family: 'Orbitron'; color: #4285F4; font-size: 42px; margin-bottom: 10px; text-shadow: 0 0 20px rgba(66,133,244,0.3);">MUNDO ABERTO</h1>
+        <p style="color: #64748b; padding: 0 20px;">Devore as frutas e morda o rabo dos inimigos menores!</p>
         <button onclick="startGame()">INICIAR</button>
     </div>
 
     <div id="gameOver" class="overlay" style="display: none;">
-        <h1 style="color: #ef4444; font-size: 40px; margin: 0; text-shadow: 0 0 20px rgba(239,68,68,0.3);">VOCÊ VIROU COMIDA</h1>
+        <h1 style="color: #ef4444; font-size: 40px; margin: 0; text-shadow: 0 0 20px rgba(239,68,68,0.3);">VOCÊ MORREU</h1>
         <div id="finalScore" style="font-size: 50px; font-weight: bold; font-family: 'Orbitron'; color: #4285F4; margin-bottom: 20px;">0</div>
         <button onclick="resetGame()">REINICIAR</button>
     </div>
@@ -89,42 +91,53 @@
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    
+    // --- CONFIGURAÇÕES DO MUNDO ---
     const gridSize = 30; 
-    const tileCount = canvas.width / gridSize;
-
+    const worldTiles = 60; // Mapa gigante de 60x60 blocos
+    
     const foodTypes = [
-        { name: "Maçã", color: "#ff4757" },
-        { name: "Uva", color: "#ffa502" },
-        { name: "Laranja", color: "#ff7f50" },
-        { name: "Mirtilo", color: "#2e86de" },
-        { name: "Pera", color: "#2ed573" }
+        { name: "Maçã", color: "#ff4757", points: 10 },
+        { name: "Uva", color: "#ffa502", points: 10 },
+        { name: "Laranja", color: "#ff7f50", points: 10 },
+        { name: "Mirtilo", color: "#2e86de", points: 10 },
+        { name: "Pera", color: "#2ed573", points: 10 }
     ];
 
     let snake = [];
-    let food = {x: 5, y: 5};
-    let currentFood = foodTypes[0];
+    let foods = [];
+    const maxFoods = 35; // Mais frutas espalhadas
+    
     let dx = 0, dy = 0, score = 0, isDead = false, gameActive = false;
     let mudandoDirecao = false; 
 
-    // --- SISTEMA DE INTELIGÊNCIA ARTIFICIAL (BOTS) ---
+    // Câmera do Jogo
+    let cameraX = 0;
+    let cameraY = 0;
+
+    // Inteligência Artificial (Bots)
     let bots = [];
-    const numBots = 3;
-    const botColors = ["#ff4757", "#ffa502", "#a855f7"]; // Vermelho, Laranja, Roxo
+    const numBots = 6; // Mais inimigos no mundo aberto
+    const botColors = ["#ff4757", "#ffa502", "#a855f7", "#e84393", "#f1c40f"];
 
     function initBots() {
         bots = [];
         for(let i = 0; i < numBots; i++) {
-            bots.push({
-                body: [
-                    {x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount)}
-                ],
-                dx: 1, dy: 0,
-                color: botColors[i % botColors.length],
-                isDead: false
-            });
-            // Da um tamanho inicial pequeno aos bots
-            bots[i].body.push({x: bots[i].body[0].x, y: bots[i].body[0].y});
+            spawnBot();
         }
+    }
+
+    function spawnBot() {
+        // Nasce num lugar aleatório no mapa com 4 blocos de tamanho
+        let bx = Math.floor(Math.random() * (worldTiles - 10)) + 5;
+        let by = Math.floor(Math.random() * (worldTiles - 10)) + 5;
+        let bColor = botColors[Math.floor(Math.random() * botColors.length)];
+        bots.push({
+            body: [{x: bx, y: by}, {x: bx, y: by}, {x: bx, y: by}, {x: bx, y: by}],
+            dx: 1, dy: 0,
+            color: bColor,
+            isDead: false
+        });
     }
 
     const logoImg = new Image();
@@ -142,9 +155,16 @@
             osc.type = 'sine'; 
             osc.frequency.setValueAtTime(450, currentTime);
             osc.frequency.exponentialRampToValueAtTime(950, currentTime + 0.08);
-            g.gain.setValueAtTime(0.08, currentTime);
+            g.gain.setValueAtTime(0.05, currentTime);
             g.gain.linearRampToValueAtTime(0, currentTime + 0.08);
             osc.start(currentTime); osc.stop(currentTime + 0.08);
+        } else if(type === 'bite') { // Som novo para morder rabo
+            osc.type = 'square'; 
+            osc.frequency.setValueAtTime(300, currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, currentTime + 0.15);
+            g.gain.setValueAtTime(0.1, currentTime);
+            g.gain.linearRampToValueAtTime(0, currentTime + 0.15);
+            osc.start(currentTime); osc.stop(currentTime + 0.15);
         } else if(type === 'dead') {
             osc.type = 'sawtooth'; 
             osc.frequency.setValueAtTime(260, currentTime);
@@ -191,13 +211,30 @@
         if(e.key === "ArrowDown" && dy !== -1) { dx = 0; dy = 1; mudandoDirecao = true; }
     });
 
-    function drawHexGrid() {
-        ctx.fillStyle = "#0c101b"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = "#161b26"; ctx.lineWidth = 2;
+    function drawWorld() {
+        ctx.fillStyle = "#0c101b"; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.save();
+        // Centralizar câmera no jogador
+        cameraX = (snake[0].x * gridSize + 15) - canvas.width / 2;
+        cameraY = (snake[0].y * gridSize + 15) - canvas.height / 2;
+        
+        ctx.translate(-cameraX, -cameraY);
+
+        // Grade Hexagonal baseada na Câmera
+        ctx.strokeStyle = "rgba(22, 27, 38, 0.6)"; 
+        ctx.lineWidth = 2;
         const hexRadius = 22; const hexHeight = hexRadius * Math.sqrt(3);
         
-        for (let row = -1; row < canvas.height / (hexHeight * 0.5) + 1; row++) {
-            for (let col = -1; col < canvas.width / (hexRadius * 1.5) + 1; col++) {
+        // Renderiza apenas os hexágonos que aparecem na tela
+        const startCol = Math.max(-1, Math.floor(cameraX / (hexRadius * 1.5)) - 1);
+        const endCol = Math.min((worldTiles * gridSize) / (hexRadius * 1.5) + 1, Math.floor((cameraX + canvas.width) / (hexRadius * 1.5)) + 2);
+        const startRow = Math.max(-1, Math.floor(cameraY / hexHeight) - 1);
+        const endRow = Math.min((worldTiles * gridSize) / hexHeight + 1, Math.floor((cameraY + canvas.height) / hexHeight) + 2);
+
+        for (let row = startRow; row < endRow; row++) {
+            for (let col = startCol; col < endCol; col++) {
                 let cx = col * hexRadius * 1.5;
                 let cy = row * hexHeight;
                 if (col % 2 === 1) cy += hexHeight * 0.5;
@@ -211,29 +248,35 @@
                 ctx.closePath(); ctx.stroke();
             }
         }
-    }
 
-    function draw() {
-        drawHexGrid();
-        
-        // 1. Desenhar Comida
-        const cx = food.x * 30 + 15; const cy = food.y * 30 + 15;
-        ctx.save();
-        let foodGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 18);
-        foodGlow.addColorStop(0, '#ffffff');
-        foodGlow.addColorStop(0.2, currentFood.color);
-        foodGlow.addColorStop(0.6, currentFood.color + '44');
-        foodGlow.addColorStop(1, 'transparent');
-        ctx.fillStyle = foodGlow;
-        ctx.beginPath(); ctx.arc(cx, cy, 18, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
+        // Borda do Mundo (Neon Vermelho)
+        ctx.strokeStyle = "rgba(239, 68, 68, 0.8)";
+        ctx.lineWidth = 10;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "#ef4444";
+        ctx.strokeRect(0, 0, worldTiles * gridSize, worldTiles * gridSize);
+        ctx.shadowBlur = 0; // Desliga a sombra para não bugar as comidas
+
+        // 1. Desenhar Todas as Comidas
+        foods.forEach(f => {
+            const cx = f.x * 30 + 15; const cy = f.y * 30 + 15;
+            ctx.save();
+            let foodGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 15);
+            foodGlow.addColorStop(0, '#ffffff');
+            foodGlow.addColorStop(0.3, f.type.color);
+            foodGlow.addColorStop(0.7, f.type.color + '44');
+            foodGlow.addColorStop(1, 'transparent');
+            ctx.fillStyle = foodGlow;
+            ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        });
 
         // 2. Desenhar Todos os Bots
         bots.forEach(bot => {
             if(bot.isDead) return;
             ctx.save();
-            ctx.shadowBlur = 15; ctx.shadowColor = bot.color;
-            ctx.strokeStyle = bot.color; ctx.lineWidth = 20;
+            ctx.shadowBlur = 10; ctx.shadowColor = bot.color;
+            ctx.strokeStyle = bot.color; ctx.lineWidth = 22;
             ctx.lineJoin = "round"; ctx.lineCap = "round";
             
             ctx.beginPath();
@@ -256,8 +299,8 @@
 
         // 3. Desenhar a Cobra do Jogador
         ctx.save();
-        ctx.shadowBlur = 15; ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-        ctx.strokeStyle = "#40c4ff"; ctx.lineWidth = 24;
+        ctx.shadowBlur = 15; ctx.shadowColor = "rgba(64, 196, 255, 0.4)";
+        ctx.strokeStyle = "#40c4ff"; ctx.lineWidth = 26;
         ctx.lineJoin = "round"; ctx.lineCap = "round";
         
         ctx.beginPath();
@@ -268,7 +311,7 @@
         ctx.stroke();
         ctx.restore();
 
-        // Cabeça do Jogador com Logo
+        // Cabeça do Jogador
         const h = snake[0];
         const hX = h.x * 30 + 15; const hY = h.y * 30 + 15;
         ctx.save();
@@ -280,6 +323,7 @@
         } catch(e) {}
         ctx.restore();
 
+        // Olhos Dinâmicos
         ctx.fillStyle = "white";
         let eyeX1 = 8, eyeY1 = 8, eyeX2 = 22, eyeY2 = 8;
         if (dx === -1) { eyeX1 = 4; eyeX2 = 4; eyeY1 = 8; eyeY2 = 22; } 
@@ -291,13 +335,21 @@
         ctx.fillStyle = "black";
         ctx.beginPath(); ctx.arc(h.x*30+eyeX1 + (dx*1.5), h.y*30+eyeY1 + (dy*1.5), 2, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(h.x*30+eyeX2 + (dx*1.5), h.y*30+eyeY2 + (dy*1.5), 2, 0, Math.PI * 2); ctx.fill();
+        
+        ctx.restore(); // Fecha o estado da Câmera
+    }
+
+    function initFoods() {
+        foods = [];
+        for(let i = 0; i < maxFoods; i++) spawnFood();
     }
 
     function spawnFood() {
-        food = {x: Math.floor(Math.random()*tileCount), y: Math.floor(Math.random()*tileCount)};
-        currentFood = foodTypes[Math.floor(Math.random()*foodTypes.length)];
-        document.getElementById('foodLabel').innerText = currentFood.name;
-        document.getElementById('foodLabel').style.color = currentFood.color;
+        foods.push({
+            x: Math.floor(Math.random()*worldTiles), 
+            y: Math.floor(Math.random()*worldTiles),
+            type: foodTypes[Math.floor(Math.random()*foodTypes.length)]
+        });
     }
 
     function triggerGameOver() {
@@ -311,78 +363,126 @@
         if(!gameActive || isDead) return;
         mudandoDirecao = false; 
 
-        // 1. Movimento do Jogador
-        let h = {x: snake[0].x + dx, y: snake[0].y + dy};
-        snake.unshift(h);
-        if(h.x === food.x && h.y === food.y) {
-            score += 10; document.getElementById('score').innerText = score;
-            playEffect('eat'); spawnFood();
-        } else { snake.pop(); }
-
-        // 2. Movimento da Inteligência Artificial (Bots)
+        // 1. Movimento dos Bots
         bots.forEach(bot => {
             if(bot.isDead) return;
             
-            // Lógica simples: Tentar ir em direção à comida
-            let moves = [
-                {x: 1, y: 0}, {x: -1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}
-            ].filter(m => !(m.x === -bot.dx && m.y === -bot.dy)); // Evita voltar para trás
+            // Bot busca a comida mais próxima
+            let closestFood = foods[0];
+            let minDist = Infinity;
+            for(let f of foods) {
+                let dist = Math.abs(bot.body[0].x - f.x) + Math.abs(bot.body[0].y - f.y);
+                if(dist < minDist) { minDist = dist; closestFood = f; }
+            }
 
-            // Escolhe o caminho mais curto até a comida
-            moves.sort((a,b) => {
-                let distA = Math.abs((bot.body[0].x + a.x) - food.x) + Math.abs((bot.body[0].y + a.y) - food.y);
-                let distB = Math.abs((bot.body[0].x + b.x) - food.x) + Math.abs((bot.body[0].y + b.y) - food.y);
-                return distA - distB;
+            // Evitar paredes e calcular melhor rota
+            let moves = [{x: 1, y: 0}, {x: -1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
+            moves = moves.filter(m => {
+                let nx = bot.body[0].x + m.x;
+                let ny = bot.body[0].y + m.y;
+                if(nx < 0 || nx >= worldTiles || ny < 0 || ny >= worldTiles) return false;
+                if(m.x === -bot.dx && m.y === -bot.dy) return false;
+                return true;
             });
 
-            bot.dx = moves[0].x; bot.dy = moves[0].y;
+            if(moves.length > 0) {
+                moves.sort((a,b) => {
+                    let distA = Math.abs((bot.body[0].x + a.x) - closestFood.x) + Math.abs((bot.body[0].y + a.y) - closestFood.y);
+                    let distB = Math.abs((bot.body[0].x + b.x) - closestFood.x) + Math.abs((bot.body[0].y + b.y) - closestFood.y);
+                    return distA - distB;
+                });
+                bot.dx = moves[0].x; bot.dy = moves[0].y;
+            }
+
             let botHead = {x: bot.body[0].x + bot.dx, y: bot.body[0].y + bot.dy};
             bot.body.unshift(botHead);
             
-            if(botHead.x === food.x && botHead.y === food.y) {
-                spawnFood(); // Bot comeu a comida
+            // Bot comendo comida
+            let ateFoodIndex = -1;
+            for(let f=0; f<foods.length; f++) {
+                if(botHead.x === foods[f].x && botHead.y === foods[f].y) {
+                    ateFoodIndex = f; break;
+                }
+            }
+            if(ateFoodIndex !== -1) {
+                foods.splice(ateFoodIndex, 1);
+                spawnFood(); 
             } else {
                 bot.body.pop();
             }
         });
 
-        // 3. Sistema de Colisão e "Devorar" (Player vs Bots)
-        // Junta todos os jogadores vivos num array para comparar
+        // 2. Movimento do Jogador e Comer Frutas
+        let h = {x: snake[0].x + dx, y: snake[0].y + dy};
+        snake.unshift(h);
+        
+        let playerAteFood = -1;
+        for(let f=0; f<foods.length; f++) {
+            if(h.x === foods[f].x && h.y === foods[f].y) {
+                playerAteFood = f; break;
+            }
+        }
+
+        if(playerAteFood !== -1) {
+            score += foods[playerAteFood].type.points; 
+            document.getElementById('score').innerText = score;
+            document.getElementById('snakeSize').innerText = snake.length;
+            playEffect('eat'); 
+            foods.splice(playerAteFood, 1);
+            spawnFood();
+        } else { 
+            snake.pop(); 
+        }
+
+        // 3. Sistema de Colisão e "Comer o Rabo" (Canibalismo)
         let allSnakes = [{isPlayer: true, body: snake}].concat(bots.filter(b => !b.isDead));
 
         for (let s1 of allSnakes) {
             let head = s1.body[0];
+            if(!head) continue;
 
-            // Bateu na parede? Morre!
-            if(head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+            // Bater no Limite do Mundo
+            if(head.x < 0 || head.x >= worldTiles || head.y < 0 || head.y >= worldTiles) {
                 if(s1.isPlayer) return triggerGameOver(); 
                 else { s1.isDead = true; continue; }
             }
 
-            // Colisão entre cobras
+            // Bater no corpo de outra cobra (Comer Rabos)
             for (let s2 of allSnakes) {
+                if(s1 === s2 || s1.isDead || s2.isDead) continue; // Ignora a si mesma
+
                 for (let i = 0; i < s2.body.length; i++) {
-                    if (s1 === s2 && i === 0) continue; // Ignora a própria cabeça
-                    
                     if (head.x === s2.body[i].x && head.y === s2.body[i].y) {
-                        // Alguém bateu! Quem é o maior?
+                        
+                        // Quem é maior?
                         if (s1.body.length > s2.body.length) {
-                            // S1 (O atacante) é MAIOR. Devora o S2!
-                            if (s2.isPlayer) return triggerGameOver(); // O jogador foi devorado por um bot maior
-                            else {
-                                s2.isDead = true; // Bot morre
-                                if (s1.isPlayer) {
-                                    // Jogador ganha bônus por devorar bot
-                                    score += 50; 
-                                    document.getElementById('score').innerText = score;
-                                    playEffect('eat');
-                                    s1.body.push({...s1.body[s1.body.length-1]}); // Cresce mais por ter comido carne
-                                }
+                            // O ATACANTE (s1) É MAIOR! Ele CORTA o oponente (s2) a partir do índice 'i'
+                            let cutLength = s2.body.length - i;
+                            s2.body.splice(i); // Arranca o pedaço do s2
+                            
+                            // O atacante cresce com o tamanho roubado
+                            for(let j=0; j<cutLength; j++) s1.body.push({...s1.body[s1.body.length-1]});
+                            
+                            if (s1.isPlayer) {
+                                score += cutLength * 15;
+                                document.getElementById('score').innerText = score;
+                                document.getElementById('snakeSize').innerText = snake.length;
+                                playEffect('bite'); // Som agressivo
+                            }
+
+                            // Se cortou bem na cabeça (i=0) ou o inimigo ficou sem corpo, ele morre
+                            if (i === 0 || s2.body.length === 0) {
+                                if (s2.isPlayer) return triggerGameOver();
+                                else s2.isDead = true;
                             }
                         } else {
-                            // S1 (O atacante) é MENOR ou IGUAL. S1 Morre!
+                            // O ATACANTE BATEU NUMA COBRA MAIOR QUE ELE (s1 morre e vira comida para o mundo)
                             if (s1.isPlayer) return triggerGameOver(); 
-                            else s1.isDead = true;
+                            else {
+                                // Deixa comida no lugar do corpo do bot morto
+                                s1.body.forEach(p => foods.push({x: p.x, y: p.y, type: foodTypes[0]}));
+                                s1.isDead = true;
+                            }
                         }
                     }
                 }
@@ -390,28 +490,30 @@
         }
 
         // 4. Renascer bots mortos (Respawn)
-        bots.forEach(bot => {
-            if(bot.isDead && Math.random() < 0.05) { // 5% de chance de renascer por frame
-                bot.body = [{x: Math.floor(Math.random()*tileCount), y: Math.floor(Math.random()*tileCount)}];
-                bot.body.push({...bot.body[0]});
-                bot.dx = 1; bot.dy = 0;
-                bot.isDead = false;
-            }
-        });
+        if(bots.filter(b => !b.isDead).length < numBots) {
+            if(Math.random() < 0.05) spawnBot();
+        }
     }
 
     function loop() {
-        update(); draw();
-        if(!isDead) setTimeout(loop, 120);
+        update(); drawWorld();
+        // Aumentei o intervalo para 150ms (Jogo mais lento e estratégico)
+        if(!isDead) setTimeout(loop, 150);
     }
 
     function resetGame() {
-        snake = [{x: 10, y: 10}, {x: 9, y: 10}, {x: 8, y: 10}];
+        // Cobra nasce num ponto aleatório central do mapa
+        let startX = Math.floor(worldTiles/2) + Math.floor(Math.random()*10 - 5);
+        let startY = Math.floor(worldTiles/2) + Math.floor(Math.random()*10 - 5);
+        snake = [{x: startX, y: startY}, {x: startX-1, y: startY}, {x: startX-2, y: startY}];
+        
         dx = 1; dy = 0; score = 0; isDead = false; mudandoDirecao = false;
         document.getElementById('score').innerText = "0";
+        document.getElementById('snakeSize').innerText = "3";
         document.getElementById('gameOver').style.display = 'none';
+        
+        initFoods();
         initBots();
-        spawnFood(); 
         gameActive = true;
         loop();
     }
