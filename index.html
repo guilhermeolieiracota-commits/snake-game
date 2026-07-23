@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Slither Style - Joystick Fixo</title>
+    <title>Snake Slither Style - Arena Infinita</title>
     
     <link rel="icon" type="image/png" href="icone.png">
     <link rel="apple-touch-icon" href="icone.png">
@@ -65,7 +65,6 @@
             box-shadow: 0 5px 25px rgba(66, 133, 244, 0.4);
             margin-top: 20px;
         }
-        /* Visualização Gráfica do Joystick */
         #joystick-base {
             position: absolute;
             width: 80px; height: 80px;
@@ -83,7 +82,6 @@
             width: 36px; height: 36px;
             background: linear-gradient(135deg, #4285F4, #0d47a1);
             border-radius: 50%;
-            position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             box-shadow: 0 4px 15px rgba(66, 133, 244, 0.4);
@@ -103,13 +101,13 @@
     </div>
 
     <div id="startScreen" class="overlay">
-        <h1 style="font-family: 'Orbitron'; color: #4285F4; font-size: 40px; margin-bottom: 10px;">TOTAL CONTROL</h1>
-        <p style="color: #64748b; padding: 0 20px; max-width: 400px;">Toque e arraste o dedo em qualquer lugar da tela para mover a cobra livremente!</p>
-        <button onclick="startGame()">JOGAR</button>
+        <h1 style="font-family: 'Orbitron'; color: #4285F4; font-size: 36px; margin-bottom: 10px;">ARENA INFINITA</h1>
+        <p style="color: #64748b; padding: 0 20px; max-width: 420px;">As bordas do mundo bloqueiam o movimento mas não matam! Cuidado apenas com os inimigos maiores.</p>
+        <button onclick="startGame()">INICIAR</button>
     </div>
 
     <div id="gameOver" class="overlay" style="display: none;">
-        <h1 style="color: #ef4444; font-size: 40px; margin: 0;">FIM DA LINHA</h1>
+        <h1 style="color: #ef4444; font-size: 36px; margin: 0; text-shadow: 0 0 20px rgba(239,68,68,0.3);">VOCÊ VIROU COMIDA</h1>
         <div id="finalScore" style="font-size: 50px; font-weight: bold; font-family: 'Orbitron'; color: #4285F4; margin-bottom: 20px;">0</div>
         <button onclick="resetGame()">REINICIAR</button>
     </div>
@@ -121,8 +119,8 @@
     const joyBase = document.getElementById('joystick-base');
     const joyStick = document.getElementById('joystick-stick');
     
-    const gridSize = 25; 
-    let tileCountX, tileCountY;
+    const gridSize = 30; 
+    const worldTiles = 60; 
     
     const foodTypes = [
         { name: "Maçã", color: "#ff4757", points: 10 },
@@ -134,20 +132,20 @@
 
     let snake = [];
     let foods = [];
-    const maxFoods = 30;
+    const maxFoods = 40; 
     
     let dx = 0, dy = 0, score = 0, isDead = false, gameActive = false;
 
-    // Inteligência Artificial (Bots)
+    let cameraX = 0;
+    let cameraY = 0;
+
     let bots = [];
-    const numBots = 4;
+    const numBots = 5;
     const botColors = ["#ff4757", "#ffa502", "#a855f7", "#e84393"];
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        tileCountX = Math.floor(canvas.width / gridSize);
-        tileCountY = Math.floor(canvas.height / gridSize);
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -160,12 +158,12 @@
     }
 
     function spawnBot() {
-        let bx = Math.floor(Math.random() * (tileCountX - 6)) + 3;
-        let by = Math.floor(Math.random() * (tileCountY - 6)) + 3;
+        let bx = Math.floor(Math.random() * (worldTiles - 10)) + 5;
+        let by = Math.floor(Math.random() * (worldTiles - 10)) + 5;
         let bColor = botColors[Math.floor(Math.random() * botColors.length)];
         bots.push({
             body: [{x: bx, y: by}, {x: bx, y: by}, {x: bx, y: by}, {x: bx, y: by}],
-            dx: 0, dy: 0, // Inicia parado até o jogador se mover
+            dx: 0, dy: 0,
             color: bColor,
             isDead: false
         });
@@ -183,25 +181,19 @@
         const currentTime = audioCtx.currentTime;
 
         if(type === 'eat') {
-            osc.type = 'sine'; 
-            osc.frequency.setValueAtTime(450, currentTime);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(450, currentTime);
             osc.frequency.exponentialRampToValueAtTime(950, currentTime + 0.08);
-            g.gain.setValueAtTime(0.04, currentTime);
-            g.gain.linearRampToValueAtTime(0, currentTime + 0.08);
+            g.gain.setValueAtTime(0.04, currentTime); g.gain.linearRampToValueAtTime(0, currentTime + 0.08);
             osc.start(currentTime); osc.stop(currentTime + 0.08);
         } else if(type === 'bite') {
-            osc.type = 'square'; 
-            osc.frequency.setValueAtTime(300, currentTime);
+            osc.type = 'square'; osc.frequency.setValueAtTime(300, currentTime);
             osc.frequency.exponentialRampToValueAtTime(100, currentTime + 0.15);
-            g.gain.setValueAtTime(0.08, currentTime);
-            g.gain.linearRampToValueAtTime(0, currentTime + 0.15);
+            g.gain.setValueAtTime(0.08, currentTime); g.gain.linearRampToValueAtTime(0, currentTime + 0.15);
             osc.start(currentTime); osc.stop(currentTime + 0.15);
         } else if(type === 'dead') {
-            osc.type = 'sawtooth'; 
-            osc.frequency.setValueAtTime(260, currentTime);
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(260, currentTime);
             osc.frequency.exponentialRampToValueAtTime(40, currentTime + 0.35);
-            g.gain.setValueAtTime(0.12, currentTime);
-            g.gain.linearRampToValueAtTime(0, currentTime + 0.35);
+            g.gain.setValueAtTime(0.12, currentTime); g.gain.linearRampToValueAtTime(0, currentTime + 0.35);
             osc.start(currentTime); osc.stop(currentTime + 0.35);
         }
     }
@@ -213,43 +205,32 @@
         resetGame();
     }
 
-    // --- CONTROLE EXCLUSIVO POR JOYSTICK VIRTUAL DINÂMICO ---
     let startX = 0, startY = 0;
     let activeTouchId = null;
 
     document.addEventListener('touchstart', e => {
         if (!gameActive || isDead || activeTouchId !== null) return;
-        
         const touch = e.changedTouches[0];
         activeTouchId = touch.identifier;
-        startX = touch.clientX;
-        startY = touch.clientY;
+        startX = touch.clientX; startY = touch.clientY;
         
-        joyBase.style.left = startX + 'px';
-        joyBase.style.top = startY + 'px';
+        joyBase.style.left = startX + 'px'; joyBase.style.top = startY + 'px';
         joyBase.style.display = 'block';
-        
-        joyStick.style.left = '50%';
-        joyStick.style.top = '50%';
+        joyStick.style.left = '50%'; joyStick.style.top = '50%';
     }, {passive: true});
 
     document.addEventListener('touchmove', e => {
         if (activeTouchId === null) return;
-        
         let currentTouch = null;
         for (let t of e.touches) {
             if (t.identifier === activeTouchId) { currentTouch = t; break; }
         }
         if (!currentTouch) return;
 
-        let curX = currentTouch.clientX;
-        let curY = currentTouch.clientY;
-
-        let diffX = curX - startX;
-        let diffY = curY - startY;
+        let diffX = currentTouch.clientX - startX;
+        let diffY = currentTouch.clientY - startY;
         let distance = Math.sqrt(diffX*diffX + diffY*diffY);
         
-        // Mapeia o visual da bolinha interna do joystick
         let maxDist = 35;
         if (distance > maxDist) {
             diffX = (diffX / distance) * maxDist;
@@ -258,7 +239,6 @@
         joyStick.style.left = `calc(50% + ${diffX}px)`;
         joyStick.style.top = `calc(50% + ${diffY}px)`;
 
-        // Define a direção discreta da grade (Cima, Baixo, Esquerda, Direita) baseado no arrasto
         if (distance > 12) {
             if (Math.abs(diffX) > Math.abs(diffY)) {
                 if (diffX > 0 && dx !== -1) { dx = 1; dy = 0; }
@@ -272,15 +252,10 @@
 
     document.addEventListener('touchend', e => {
         for (let t of e.changedTouches) {
-            if (t.identifier === activeTouchId) {
-                activeTouchId = null;
-                joyBase.style.display = 'none';
-                break;
-            }
+            if (t.identifier === activeTouchId) { activeTouchId = null; joyBase.style.display = 'none'; break; }
         }
     }, {passive: true});
 
-    // Suporte para Teclado no PC
     document.addEventListener('keydown', e => {
         if(e.key === "ArrowLeft" && dx !== 1) { dx = -1; dy = 0; }
         if(e.key === "ArrowUp" && dy !== 1) { dx = 0; dy = -1; }
@@ -288,12 +263,31 @@
         if(e.key === "ArrowDown" && dy !== -1) { dx = 0; dy = 1; }
     });
 
+    function updateCamera() {
+        const headX = snake[0].x * gridSize + gridSize/2;
+        const headY = snake[0].y * gridSize + gridSize/2;
+        const padding = gridSize * 3;
+
+        if (headX - cameraX < padding) cameraX = headX - padding;
+        if (headX - cameraX > canvas.width - padding) cameraX = headX - (canvas.width - padding);
+        if (headY - cameraY < padding) cameraY = headY - padding;
+        if (headY - cameraY > canvas.height - padding) cameraY = headY - (canvas.height - padding);
+
+        cameraX = Math.max(0, Math.min(cameraX, (worldTiles * gridSize) - canvas.width));
+        cameraY = Math.max(0, Math.min(cameraY, (worldTiles * gridSize) - canvas.height));
+    }
+
     function drawHexGrid() {
         ctx.strokeStyle = "#151a26"; ctx.lineWidth = 1.5;
         const hexRadius = 20; const hexHeight = hexRadius * Math.sqrt(3);
         
-        for (let row = -1; row < canvas.height / (hexHeight * 0.5) + 1; row++) {
-            for (let col = -1; col < canvas.width / (hexRadius * 1.5) + 1; col++) {
+        const startCol = Math.max(-1, Math.floor(cameraX / (hexRadius * 1.5)) - 1);
+        const endCol = Math.min((worldTiles * gridSize) / (hexRadius * 1.5) + 1, Math.floor((cameraX + canvas.width) / (hexRadius * 1.5)) + 2);
+        const startRow = Math.max(-1, Math.floor(cameraY / hexHeight) - 1);
+        const endRow = Math.min((worldTiles * gridSize) / hexHeight + 1, Math.floor((cameraY + canvas.height) / hexHeight) + 2);
+
+        for (let row = startRow; row < endRow; row++) {
+            for (let col = startCol; col < endCol; col++) {
                 let cx = col * hexRadius * 1.5;
                 let cy = row * hexHeight;
                 if (col % 2 === 1) cy += hexHeight * 0.5;
@@ -310,21 +304,24 @@
     }
 
     function draw() {
-        ctx.fillStyle = "#0c101b"; 
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#0c101b"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.save();
+        ctx.translate(-cameraX, -cameraY); 
         
         drawHexGrid();
+
+        // Barreira Limitadora (Vermelho Neon)
+        ctx.strokeStyle = "rgba(239, 68, 68, 0.7)"; ctx.lineWidth = 8;
+        ctx.strokeRect(0, 0, worldTiles * gridSize, worldTiles * gridSize);
         
         // 1. Desenhar Comidas
         foods.forEach(f => {
-            const cx = f.x * gridSize + gridSize/2; 
-            const cy = f.y * gridSize + gridSize/2;
+            const cx = f.x * gridSize + gridSize/2; const cy = f.y * gridSize + gridSize/2;
             ctx.save();
             let foodGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 14);
-            foodGlow.addColorStop(0, '#ffffff');
-            foodGlow.addColorStop(0.3, f.type.color);
-            foodGlow.addColorStop(0.7, f.type.color + '33');
-            foodGlow.addColorStop(1, 'transparent');
+            foodGlow.addColorStop(0, '#ffffff'); foodGlow.addColorStop(0.3, f.type.color);
+            foodGlow.addColorStop(0.7, f.type.color + '33'); foodGlow.addColorStop(1, 'transparent');
             ctx.fillStyle = foodGlow;
             ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2); ctx.fill();
             ctx.restore();
@@ -337,14 +334,12 @@
             ctx.shadowBlur = 8; ctx.shadowColor = bot.color;
             ctx.strokeStyle = bot.color; ctx.lineWidth = 18;
             ctx.lineJoin = "round"; ctx.lineCap = "round";
-            
             ctx.beginPath();
             bot.body.forEach((p, i) => {
                 if(i === 0) ctx.moveTo(p.x*gridSize+gridSize/2, p.y*gridSize+gridSize/2);
                 else ctx.lineTo(p.x*gridSize+gridSize/2, p.y*gridSize+gridSize/2);
             });
             ctx.stroke();
-
             ctx.fillStyle = "white";
             let hX = bot.body[0].x*gridSize+gridSize/2, hY = bot.body[0].y*gridSize+gridSize/2;
             ctx.beginPath(); ctx.arc(hX-4, hY-4, 3, 0, Math.PI * 2); ctx.fill();
@@ -357,7 +352,6 @@
         ctx.shadowBlur = 12; ctx.shadowColor = "rgba(64, 196, 255, 0.3)";
         ctx.strokeStyle = "#40c4ff"; ctx.lineWidth = 22;
         ctx.lineJoin = "round"; ctx.lineCap = "round";
-        
         ctx.beginPath();
         snake.forEach((p, i) => {
             if(i === 0) ctx.moveTo(p.x*gridSize+gridSize/2, p.y*gridSize+gridSize/2);
@@ -367,8 +361,7 @@
         ctx.restore();
 
         const h = snake[0];
-        const hX = h.x * gridSize + gridSize/2; 
-        const hY = h.y * gridSize + gridSize/2;
+        const hX = h.x * gridSize + gridSize/2; const hY = h.y * gridSize + gridSize/2;
         
         ctx.save();
         ctx.fillStyle = "#0091ea";
@@ -384,9 +377,10 @@
         if (dx === -1) { eyeX1 = 3; eyeX2 = 3; eyeY1 = 6; eyeY2 = 19; } 
         else if (dx === 1) { eyeX1 = 22; eyeX2 = 22; eyeY1 = 6; eyeY2 = 19; } 
         else if (dy === 1) { eyeX1 = 6; eyeX2 = 19; eyeY1 = 22; eyeY2 = 22; } 
-
         ctx.beginPath(); ctx.arc(h.x*gridSize+eyeX1, h.y*gridSize+eyeY1, 4, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(h.x*gridSize+eyeX2, h.y*gridSize+eyeY2, 4, 0, Math.PI * 2); ctx.fill();
+        
+        ctx.restore(); 
     }
 
     function initFoods() {
@@ -396,45 +390,40 @@
 
     function spawnFood() {
         foods.push({
-            x: Math.floor(Math.random() * tileCountX), 
-            y: Math.floor(Math.random() * tileCountY),
+            x: Math.floor(Math.random() * worldTiles), 
+            y: Math.floor(Math.random() * worldTiles),
             type: foodTypes[Math.floor(Math.random() * foodTypes.length)]
         });
     }
 
     function triggerGameOver() {
-        isDead = true; 
-        playEffect('dead'); 
+        isDead = true; playEffect('dead'); 
         document.getElementById('gameOver').style.display = 'flex';
         document.getElementById('finalScore').innerText = score;
     }
 
     function update() {
         if(!gameActive || isDead) return;
+        if (dx === 0 && dy === 0) return; 
 
-        // SE O JOGADOR AINDA NÃO SE MOVEU (ESTÁ PARADO NO INÍCIO), NADA ANDA
-        if (dx === 0 && dy === 0) return;
+        updateCamera(); 
 
-        // 1. Movimento dos Bots
+        // 1. Movimento dos Bots (Com desvio de paredes)
         bots.forEach(bot => {
             if(bot.isDead) return;
-            
-            let closestFood = foods[0];
-            let minDist = Infinity;
+            let closestFood = foods[0]; let minDist = Infinity;
             for(let f of foods) {
                 let dist = Math.abs(bot.body[0].x - f.x) + Math.abs(bot.body[0].y - f.y);
                 if(dist < minDist) { minDist = dist; closestFood = f; }
             }
-
             let moves = [{x: 1, y: 0}, {x: -1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
             moves = moves.filter(m => {
-                let nx = bot.body[0].x + m.x;
-                let ny = bot.body[0].y + m.y;
-                if(nx < 0 || nx >= tileCountX || ny < 0 || ny >= tileCountY) return false;
+                let nx = bot.body[0].x + m.x; let ny = bot.body[0].y + m.y;
+                // Impede bots de cruzarem as bordas
+                if(nx < 0 || nx >= worldTiles || ny < 0 || ny >= worldTiles) return false;
                 if(m.x === -bot.dx && m.y === -bot.dy) return false;
                 return true;
             });
-
             if(moves.length > 0) {
                 moves.sort((a,b) => {
                     let distA = Math.abs((bot.body[0].x + a.x) - closestFood.x) + Math.abs((bot.body[0].y + a.y) - closestFood.y);
@@ -442,29 +431,27 @@
                     return distA - distB;
                 });
                 bot.dx = moves[0].x; bot.dy = moves[0].y;
-            } else {
-                bot.dx = 1; bot.dy = 0;
             }
-
             let botHead = {x: bot.body[0].x + bot.dx, y: bot.body[0].y + bot.dy};
             bot.body.unshift(botHead);
-            
             let ateFoodIndex = -1;
             for(let f=0; f<foods.length; f++) {
                 if(botHead.x === foods[f].x && botHead.y === foods[f].y) { ateFoodIndex = f; break; }
             }
-            if(ateFoodIndex !== -1) { foods.splice(ateFoodIndex, 1); spawnFood(); } 
-            else { bot.body.pop(); }
+            if(ateFoodIndex !== -1) { foods.splice(ateFoodIndex, 1); spawnFood(); } else { bot.body.pop(); }
         });
 
-        // 2. Movimento do Jogador
-        let h = {x: snake[0].x + dx, y: snake[0].y + dy};
+        // 2. Movimento do Jogador (PAREDE FÍSICA INVISÍVEL)
+        let nX = snake[0].x + dx;
+        let nY = snake[0].y + dy;
         
-        // Colisão com as Paredes Físicas da Tela Cheia
-        if(h.x < 0 || h.x >= tileCountX || h.y < 0 || h.y >= tileCountY) {
-            return triggerGameOver();
+        // Se bater no limite, a coordenada é bloqueada (ela bate na parede e escorrega)
+        if (nX < 0 || nX >= worldTiles || nY < 0 || nY >= worldTiles) {
+            // Fica parada na borda esperando mudar de direção no joystick
+            return; 
         }
 
+        let h = {x: nX, y: nY};
         snake.unshift(h);
         
         let playerAteFood = -1;
@@ -476,31 +463,20 @@
             score += foods[playerAteFood].type.points; 
             document.getElementById('score').innerText = score;
             document.getElementById('snakeSize').innerText = snake.length;
-            playEffect('eat'); 
-            foods.splice(playerAteFood, 1);
-            spawnFood();
-        } else { 
-            snake.pop(); 
-        }
+            playEffect('eat'); foods.splice(playerAteFood, 1); spawnFood();
+        } else { snake.pop(); }
 
-        // 3. Canibalismo e Mordidas no Rabo
+        // 3. Sistema de Mordidas no Rabo e Canibalismo (Única forma de morrer!)
         let allSnakes = [{isPlayer: true, body: snake}].concat(bots.filter(b => !b.isDead));
-
         for (let s1 of allSnakes) {
-            let head = s1.body[0];
-            if(!head) continue;
-
+            let head = s1.body[0]; if(!head) continue;
             for (let s2 of allSnakes) {
                 if(s1 === s2 || s1.isDead || s2.isDead) continue;
-
                 for (let i = 0; i < s2.body.length; i++) {
                     if (head.x === s2.body[i].x && head.y === s2.body[i].y) {
                         if (s1.body.length > s2.body.length) {
-                            let cutLength = s2.body.length - i;
-                            s2.body.splice(i); 
-                            
+                            let cutLength = s2.body.length - i; s2.body.splice(i); 
                             for(let j=0; j<cutLength; j++) s1.body.push({...s1.body[s1.body.length-1]});
-                            
                             if (s1.isPlayer) {
                                 score += cutLength * 15;
                                 document.getElementById('score').innerText = score;
@@ -508,8 +484,7 @@
                                 playEffect('bite');
                             }
                             if (i === 0 || s2.body.length === 0) {
-                                if (s2.isPlayer) return triggerGameOver();
-                                else s2.isDead = true;
+                                if (s2.isPlayer) return triggerGameOver(); else s2.isDead = true;
                             }
                         } else {
                             if (s1.isPlayer) return triggerGameOver(); 
@@ -522,7 +497,6 @@
                 }
             }
         }
-
         if(bots.filter(b => !b.isDead).length < numBots) {
             if(Math.random() < 0.03) spawnBot();
         }
@@ -530,26 +504,25 @@
 
     function loop() {
         update(); draw();
-        if(!isDead) setTimeout(loop, 160); // Ritmo confortável e preciso
+        if(!isDead) setTimeout(loop, 150);
     }
 
     function resetGame() {
         resizeCanvas();
-        let startX = Math.floor(tileCountX / 2);
-        let startY = Math.floor(tileCountY / 2);
+        let startX = Math.floor(worldTiles / 2);
+        let startY = Math.floor(worldTiles / 2);
         snake = [{x: startX, y: startY}, {x: startX-1, y: startY}, {x: startX-2, y: startY}];
         
-        dx = 0; dy = 0; // FICA PARADA ESPERANDO O PRIMEIRO TOQUE
-        score = 0; isDead = false;
+        dx = 0; dy = 0; score = 0; isDead = false;
+        cameraX = (startX * gridSize) - canvas.width / 2;
+        cameraY = (startY * gridSize) - canvas.height / 2;
         
         document.getElementById('score').innerText = "0";
         document.getElementById('snakeSize').innerText = "3";
         document.getElementById('gameOver').style.display = 'none';
         
-        initFoods();
-        initBots();
-        gameActive = true;
-        loop();
+        initFoods(); initBots();
+        gameActive = true; loop();
     }
 </script>
 </body>
